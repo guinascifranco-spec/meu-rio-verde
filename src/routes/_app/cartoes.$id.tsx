@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,9 +24,10 @@ import {
   getCardWithPurchases,
   createCardPurchase,
   deleteCardPurchase,
+  updateCardPurchase,
 } from "@/lib/api/fintrack.functions";
 import { formatBRL, formatDateBR, CATEGORIES } from "@/lib/format";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Pencil } from "lucide-react";
 
 export const Route = createFileRoute("/_app/cartoes/$id")({
   head: () => ({ meta: [{ title: "Fatura — FinTrack" }] }),
@@ -37,6 +38,7 @@ function CardDetail() {
   const { id } = Route.useParams();
   const get = useServerFn(getCardWithPurchases);
   const create = useServerFn(createCardPurchase);
+  const update = useServerFn(updateCardPurchase);
   const del = useServerFn(deleteCardPurchase);
   const qc = useQueryClient();
 
@@ -46,25 +48,51 @@ function CardDetail() {
   });
 
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [desc, setDesc] = useState("");
   const [amount, setAmount] = useState<number | "">("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [category, setCategory] = useState("Outros");
   const [installments, setInstallments] = useState(1);
 
+  useEffect(() => {
+    if (!open) return;
+    if (editingId) {
+      const p = (q.data?.purchases ?? []).find((x) => x.id === editingId);
+      if (p) {
+        setDesc(p.description);
+        setAmount(Number(p.amount));
+        setDate(p.date);
+        setCategory(p.category);
+        setInstallments(p.installments ?? 1);
+      }
+    } else {
+      setDesc("");
+      setAmount("");
+      setDate(new Date().toISOString().slice(0, 10));
+      setCategory("Outros");
+      setInstallments(1);
+    }
+  }, [open, editingId, q.data]);
+
   const m = useMutation({
     mutationFn: async () => {
       if (!desc || amount === "") throw new Error("Preencha todos os campos");
+      if (editingId) {
+        return update({
+          data: { id: editingId, description: desc, amount: Number(amount), date, category },
+        });
+      }
       return create({
         data: { card_id: id, description: desc, amount: Number(amount), date, category, installments },
       });
     },
     onSuccess: () => {
-      toast.success("Compra registrada");
+      toast.success(editingId ? "Compra atualizada" : "Compra registrada");
       qc.invalidateQueries({ queryKey: ["card", id] });
       qc.invalidateQueries({ queryKey: ["cards"] });
       setOpen(false);
-      setDesc(""); setAmount(""); setInstallments(1);
+      setEditingId(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -95,7 +123,7 @@ function CardDetail() {
             Fecha dia {card.closing_day} · Vence dia {card.due_day}
           </p>
         </div>
-        <Button onClick={() => setOpen(true)} className="rounded-xl">
+        <Button onClick={() => { setEditingId(null); setOpen(true); }} className="rounded-xl">
           <Plus className="mr-1 h-4 w-4" /> Nova compra
         </Button>
       </div>
@@ -120,6 +148,13 @@ function CardDetail() {
                   <span className="font-semibold">{formatBRL(p.amount)}</span>
                   <Button
                     size="sm" variant="ghost"
+                    onClick={() => { setEditingId(p.id); setOpen(true); }}
+                    className="rounded-lg text-muted-foreground hover:text-foreground"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm" variant="ghost"
                     onClick={() => delM.mutate(p.id)}
                     className="rounded-lg text-muted-foreground hover:text-rose-500"
                   >
@@ -132,16 +167,16 @@ function CardDetail() {
         </CardContent>
       </Card>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditingId(null); }}>
         <DialogContent className="rounded-2xl sm:max-w-md">
-          <DialogHeader><DialogTitle>Nova compra</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingId ? "Editar compra" : "Nova compra"}</DialogTitle></DialogHeader>
           <div className="grid gap-3 py-2">
             <div className="grid gap-1.5">
               <Label>Descrição</Label>
               <Input value={desc} onChange={(e) => setDesc(e.target.value)} />
             </div>
             <div className="grid gap-1.5">
-              <Label>Valor total</Label>
+              <Label>{editingId ? "Valor" : "Valor total"}</Label>
               <MoneyInput value={amount} onChange={setAmount} />
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -151,7 +186,11 @@ function CardDetail() {
               </div>
               <div className="grid gap-1.5">
                 <Label>Parcelas</Label>
-                <Select value={String(installments)} onValueChange={(v) => setInstallments(Number(v))}>
+                <Select
+                  value={String(installments)}
+                  onValueChange={(v) => setInstallments(Number(v))}
+                  disabled={!!editingId}
+                >
                   <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {Array.from({ length: 24 }).map((_, i) => (
@@ -161,6 +200,11 @@ function CardDetail() {
                 </Select>
               </div>
             </div>
+            {editingId && (
+              <p className="text-xs text-muted-foreground">
+                Editar uma compra altera apenas esta parcela.
+              </p>
+            )}
             <div className="grid gap-1.5">
               <Label>Categoria</Label>
               <Select value={category} onValueChange={setCategory}>
