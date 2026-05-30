@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,9 +23,10 @@ import {
   createGoal,
   addGoalContribution,
   deleteGoal,
+  updateGoal,
 } from "@/lib/api/fintrack.functions";
 import { formatBRL, formatDateBR } from "@/lib/format";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Pencil } from "lucide-react";
 
 export const Route = createFileRoute("/_app/metas")({
   head: () => ({ meta: [{ title: "Metas — FinTrack" }] }),
@@ -35,12 +36,14 @@ export const Route = createFileRoute("/_app/metas")({
 function Metas() {
   const list = useServerFn(listGoals);
   const create = useServerFn(createGoal);
+  const update = useServerFn(updateGoal);
   const contribute = useServerFn(addGoalContribution);
   const del = useServerFn(deleteGoal);
   const qc = useQueryClient();
 
   const q = useQuery({ queryKey: ["goals"], queryFn: () => list() });
   const [openNew, setOpenNew] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [contribGoal, setContribGoal] = useState<string | null>(null);
 
   const [name, setName] = useState("");
@@ -49,21 +52,36 @@ function Metas() {
   const [emoji, setEmoji] = useState("🎯");
   const [contribAmount, setContribAmount] = useState<number | "">("");
 
-  const createM = useMutation({
-    mutationFn: async () => {
-      if (!name || target === "") throw new Error("Preencha nome e valor");
-      return create({
-        data: { name, target_amount: Number(target), deadline: deadline || null, emoji },
-      });
-    },
-    onSuccess: () => {
-      toast.success("Meta criada");
-      qc.invalidateQueries({ queryKey: ["goals"] });
-      setOpenNew(false);
+  useEffect(() => {
+    if (!openNew) return;
+    if (editingId) {
+      const g = (q.data ?? []).find((x) => x.id === editingId);
+      if (g) {
+        setName(g.name);
+        setTarget(Number(g.target_amount));
+        setDeadline(g.deadline ?? "");
+        setEmoji(g.emoji);
+      }
+    } else {
       setName("");
       setTarget("");
       setDeadline("");
       setEmoji("🎯");
+    }
+  }, [openNew, editingId, q.data]);
+
+  const createM = useMutation({
+    mutationFn: async () => {
+      if (!name || target === "") throw new Error("Preencha nome e valor");
+      const payload = { name, target_amount: Number(target), deadline: deadline || null, emoji };
+      if (editingId) return update({ data: { id: editingId, ...payload } });
+      return create({ data: payload });
+    },
+    onSuccess: () => {
+      toast.success(editingId ? "Meta atualizada" : "Meta criada");
+      qc.invalidateQueries({ queryKey: ["goals"] });
+      setOpenNew(false);
+      setEditingId(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -97,7 +115,7 @@ function Metas() {
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Metas de Economia</h1>
           <p className="text-sm text-muted-foreground">Acompanhe seus objetivos financeiros</p>
         </div>
-        <Button onClick={() => setOpenNew(true)} className="rounded-xl">
+        <Button onClick={() => { setEditingId(null); setOpenNew(true); }} className="rounded-xl">
           <Plus className="mr-1 h-4 w-4" /> Nova meta
         </Button>
       </div>
@@ -112,7 +130,7 @@ function Metas() {
           title="Sem metas ainda"
           description="Crie sua primeira meta de economia."
           actionLabel="Criar meta"
-          onAction={() => setOpenNew(true)}
+          onAction={() => { setEditingId(null); setOpenNew(true); }}
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -134,12 +152,22 @@ function Metas() {
                         </p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => delM.mutate(g.id)}
-                      className="text-muted-foreground hover:text-rose-500"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => { setEditingId(g.id); setOpenNew(true); }}
+                        className="text-muted-foreground hover:text-foreground"
+                        aria-label="Editar"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => delM.mutate(g.id)}
+                        className="text-muted-foreground hover:text-rose-500"
+                        aria-label="Excluir"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                   <div className="mt-4">
                     <div className="mb-1 flex justify-between text-sm">
@@ -176,10 +204,10 @@ function Metas() {
         </div>
       )}
 
-      <Dialog open={openNew} onOpenChange={setOpenNew}>
+      <Dialog open={openNew} onOpenChange={(o) => { setOpenNew(o); if (!o) setEditingId(null); }}>
         <DialogContent className="rounded-2xl sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Nova meta</DialogTitle>
+            <DialogTitle>{editingId ? "Editar meta" : "Nova meta"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-1.5">
