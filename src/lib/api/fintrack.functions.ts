@@ -126,6 +126,27 @@ export const deleteBill = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const updateBill = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        description: z.string().min(1),
+        amount: z.number().positive(),
+        due_date: z.string(),
+        type: z.enum(["payable", "receivable"]),
+        recurring: z.boolean().default(false),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { id, ...patch } = data;
+    const { error } = await context.supabase.from("bills").update(patch).eq("id", id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 // ============ Goals ============
 export const listGoals = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
