@@ -9,8 +9,8 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Entrar — FinTrack" },
-      { name: "description", content: "Acesse sua conta FinTrack para controlar suas finanças." },
+      { title: "Entrar — MonetaRio" },
+      { name: "description", content: "Acesse sua conta MonetaRio para controlar suas finanças." },
     ],
   }),
   component: LoginPage,
@@ -57,7 +57,7 @@ function LoginPage() {
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
             <Wallet className="h-6 w-6" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">FinTrack</h1>
+          <h1 className="text-2xl font-bold tracking-tight">MonetaRio</h1>
           <p className="text-sm text-muted-foreground">
             Controle simples e visual das suas finanças.
           </p>

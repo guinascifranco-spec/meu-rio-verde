@@ -30,7 +30,7 @@ import { formatBRL, formatDateBR, CATEGORIES } from "@/lib/format";
 import { ArrowLeft, Plus, Trash2, Pencil } from "lucide-react";
 
 export const Route = createFileRoute("/_app/cartoes/$id")({
-  head: () => ({ meta: [{ title: "Fatura — FinTrack" }] }),
+  head: () => ({ meta: [{ title: "Fatura — MonetaRio" }] }),
   component: CardDetail,
 });
 

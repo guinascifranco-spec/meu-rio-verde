@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import {
   listTransactions,
   listBills,
@@ -36,7 +37,7 @@ import { addDays, startOfMonth, subMonths, format, parseISO } from "date-fns";
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({
-    meta: [{ title: "Dashboard — FinTrack" }],
+    meta: [{ title: "Dashboard — MonetaRio" }],
   }),
   component: Dashboard,
 });
@@ -58,6 +59,33 @@ function Dashboard() {
   const listB = useServerFn(listBills);
   const delTx = useServerFn(deleteTransaction);
   const qc = useQueryClient();
+
+  const userQ = useQuery({
+    queryKey: ["supabase-user"],
+    queryFn: async () => {
+      const { data } = await supabase.auth.getUser();
+      return data?.user ?? null;
+    },
+  });
+
+  useEffect(() => {
+    if (userQ.data) {
+      const user = userQ.data;
+      const isGoogle = user.app_metadata?.provider === "google" || user.identities?.some(id => id.provider === "google");
+      const createdAt = new Date(user.created_at).getTime();
+      const nowTime = new Date().getTime();
+      const isNew = (nowTime - createdAt) < 120000; // 2 minutes window
+      
+      const welcomeShown = localStorage.getItem(`monetario_welcome_shown_${user.id}`);
+      
+      if (isGoogle && isNew && !welcomeShown) {
+        toast.success("Bem-vindo ao MonetaRio! 🎉 Comece adicionando sua primeira transação.", {
+          duration: 8000,
+        });
+        localStorage.setItem(`monetario_welcome_shown_${user.id}`, "true");
+      }
+    }
+  }, [userQ.data]);
 
   const txQ = useQuery({ queryKey: ["transactions"], queryFn: () => listTx() });
   const billsQ = useQuery({ queryKey: ["bills"], queryFn: () => listB() });
@@ -122,11 +150,14 @@ function Dashboard() {
       .slice(0, 6);
   }, [billsQ.data, now]);
 
+  const displayName = userQ.data?.user_metadata?.display_name || userQ.data?.user_metadata?.full_name || userQ.data?.email || "";
+  const greeting = displayName ? `Olá, ${displayName} 👋` : "Olá 👋";
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Olá 👋</h1>
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{greeting}</h1>
           <p className="text-sm text-muted-foreground">Resumo de {format(now, "MMMM 'de' yyyy")}</p>
         </div>
         <div className="flex gap-2">
@@ -143,27 +174,27 @@ function Dashboard() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <SummaryCard
           label="Receitas"
-          value={formatBRL(monthly.income)}
+          value={formatBRL(monthly.income || 0)}
           icon={<TrendingUp className="h-4 w-4" />}
           tone="text-emerald-600"
           loading={txQ.isLoading}
         />
         <SummaryCard
           label="Despesas"
-          value={formatBRL(monthly.expense)}
+          value={formatBRL(monthly.expense || 0)}
           icon={<TrendingDown className="h-4 w-4" />}
           tone="text-rose-500"
           loading={txQ.isLoading}
         />
         <SummaryCard
           label="Saldo"
-          value={formatBRL(monthly.balance)}
+          value={formatBRL(monthly.balance || 0)}
           icon={<Wallet className="h-4 w-4" />}
           loading={txQ.isLoading}
         />
         <SummaryCard
           label="Taxa poupança"
-          value={`${monthly.savings.toFixed(0)}%`}
+          value={`${(monthly.savings || 0).toFixed(0)}%`}
           icon={<PiggyBank className="h-4 w-4" />}
           loading={txQ.isLoading}
         />
@@ -178,6 +209,10 @@ function Dashboard() {
           <CardContent className="h-72">
             {txQ.isLoading ? (
               <Skeleton className="h-full w-full" />
+            ) : (txQ.data ?? []).length === 0 ? (
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                Dados insuficientes para exibir o gráfico
+              </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={lineData}>
@@ -205,7 +240,7 @@ function Dashboard() {
               <Skeleton className="h-full w-full" />
             ) : pieData.length === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                Sem despesas neste mês
+                Dados insuficientes para exibir o gráfico
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -270,16 +305,16 @@ function Dashboard() {
         </CardHeader>
         <CardContent>
           {txQ.isLoading ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
+              <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
             </div>
           ) : recentTx.length === 0 ? (
             <EmptyState
-              icon="📝"
-              title="Nenhuma transação"
-              description="Registre sua primeira receita ou despesa."
-              actionLabel="Nova transação"
+              icon="💸"
+              title="Nenhuma movimentação ainda"
+              actionLabel="+ Adicionar transação"
               onAction={() => { setEditingTx(null); setOpenTx(true); }}
             />
           ) : (

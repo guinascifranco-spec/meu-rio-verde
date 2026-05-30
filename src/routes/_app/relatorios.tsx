@@ -22,7 +22,7 @@ import { ptBR } from "date-fns/locale";
 import { Printer } from "lucide-react";
 
 export const Route = createFileRoute("/_app/relatorios")({
-  head: () => ({ meta: [{ title: "Relatórios — FinTrack" }] }),
+  head: () => ({ meta: [{ title: "Relatórios — MonetaRio" }] }),
   component: Relatorios,
 });
 
@@ -34,20 +34,25 @@ function Relatorios() {
 
   const barData = useMemo(() => {
     const txs = q.data ?? [];
-    const now = new Date();
+    const [yearStr, monthStr] = month.split("-");
+    const endDate = new Date(Number(yearStr), Number(monthStr) - 1, 15);
     return Array.from({ length: 12 }).map((_, i) => {
-      const d = subMonths(now, 11 - i);
+      const d = subMonths(endDate, 11 - i);
       const s = startOfMonth(d);
-      const e = startOfMonth(subMonths(now, 11 - i - 1));
-      const month = txs.filter((t) => {
+      const e = startOfMonth(subMonths(endDate, 11 - i - 1));
+      const monthTxs = txs.filter((t) => {
         const td = parseISO(t.date);
         return td >= s && td < e;
       });
-      const receita = month.filter((t) => t.type === "income").reduce((a, t) => a + Number(t.amount), 0);
-      const despesa = month.filter((t) => t.type === "expense").reduce((a, t) => a + Number(t.amount), 0);
+      const receita = monthTxs.filter((t) => t.type === "income").reduce((a, t) => a + Number(t.amount), 0);
+      const despesa = monthTxs.filter((t) => t.type === "expense").reduce((a, t) => a + Number(t.amount), 0);
       return { mes: format(d, "MMM/yy", { locale: ptBR }), receita, despesa };
     });
-  }, [q.data]);
+  }, [q.data, month]);
+
+  const hasBarData = useMemo(() => {
+    return barData.some((d) => d.receita > 0 || d.despesa > 0);
+  }, [barData]);
 
   const categoryRows = useMemo(() => {
     const txs = (q.data ?? []).filter(
@@ -70,7 +75,7 @@ function Relatorios() {
         </div>
         <div className="flex items-end gap-2">
           <div>
-            <label className="block text-xs text-muted-foreground">Mês</label>
+            <label className="block text-xs text-muted-foreground font-medium mb-1">Selecionar mês:</label>
             <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="rounded-xl" />
           </div>
           <Button onClick={() => window.print()} variant="outline" className="rounded-xl">
@@ -84,6 +89,10 @@ function Relatorios() {
         <CardContent className="h-80">
           {q.isLoading ? (
             <Skeleton className="h-full w-full" />
+          ) : !hasBarData ? (
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              Sem dados suficientes para este período
+            </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={barData}>

@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "FinTrack — Controle financeiro pessoal" },
+      { title: "MonetaRio — Controle financeiro pessoal" },
       {
         name: "description",
         content: "Gerencie suas finanças, metas e cartões em um só lugar.",

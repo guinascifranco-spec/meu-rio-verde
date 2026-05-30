@@ -37,7 +37,7 @@ export function AppShell() {
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <Wallet className="h-5 w-5" />
           </div>
-          <span className="text-lg font-bold tracking-tight">FinTrack</span>
+          <span className="text-lg font-bold tracking-tight">MonetaRio</span>
         </div>
         <nav className="flex-1 space-y-1">
           {nav.map((item) => {
@@ -72,7 +72,7 @@ export function AppShell() {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Wallet className="h-4 w-4" />
           </div>
-          <span className="font-bold">FinTrack</span>
+          <span className="font-bold">MonetaRio</span>
         </div>
         <Button variant="ghost" size="sm" onClick={logout}>
           <LogOut className="h-4 w-4" />

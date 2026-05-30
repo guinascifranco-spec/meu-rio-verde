@@ -29,7 +29,7 @@ import { formatBRL, formatDateBR } from "@/lib/format";
 import { Plus, Trash2, Pencil } from "lucide-react";
 
 export const Route = createFileRoute("/_app/metas")({
-  head: () => ({ meta: [{ title: "Metas — FinTrack" }] }),
+  head: () => ({ meta: [{ title: "Metas — MonetaRio" }] }),
   component: Metas,
 });
 
@@ -127,9 +127,8 @@ function Metas() {
       ) : (q.data ?? []).length === 0 ? (
         <EmptyState
           icon="🎯"
-          title="Sem metas ainda"
-          description="Crie sua primeira meta de economia."
-          actionLabel="Criar meta"
+          title="Você ainda não tem metas. Crie a primeira!"
+          actionLabel="Nova meta"
           onAction={() => { setEditingId(null); setOpenNew(true); }}
         />
       ) : (

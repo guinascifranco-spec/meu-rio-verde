@@ -32,7 +32,7 @@ import { Plus, Trash2, Check, Pencil } from "lucide-react";
 import { parseISO, isBefore, startOfDay } from "date-fns";
 
 export const Route = createFileRoute("/_app/contas")({
-  head: () => ({ meta: [{ title: "Contas — FinTrack" }] }),
+  head: () => ({ meta: [{ title: "Contas — MonetaRio" }] }),
   component: Contas,
 });
 
@@ -127,23 +127,31 @@ function Contas() {
         </Select>
       </div>
 
-      <Card className="rounded-2xl">
-        <CardContent className="p-0">
-          {q.isLoading ? (
-            <div className="space-y-2 p-4">
-              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="p-6">
-              <EmptyState
-                icon="🧾"
-                title="Nenhuma conta encontrada"
-                description="Adicione sua primeira conta a pagar ou receber."
-                actionLabel="Nova conta"
-                onAction={() => setOpenNew(true)}
-              />
-            </div>
-          ) : (
+      {q.isLoading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-32 rounded-2xl" />)}
+        </div>
+      ) : (
+        <Card className="rounded-2xl">
+          <CardContent className="p-0">
+            {(q.data ?? []).length === 0 ? (
+              <div className="p-6">
+                <EmptyState
+                  icon="📋"
+                  title="Nenhuma conta cadastrada ainda."
+                  actionLabel="Nova conta"
+                  onAction={() => setOpenNew(true)}
+                />
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="p-6">
+                <EmptyState
+                  icon="🔍"
+                  title="Nenhuma conta encontrada"
+                  description="Tente ajustar seus filtros."
+                />
+              </div>
+            ) : (
             <ul className="divide-y divide-border">
               {filtered.map((b) => {
                 const overdue =
@@ -210,6 +218,7 @@ function Contas() {
           )}
         </CardContent>
       </Card>
+    )}
 
       <BillDialog
         open={openNew}

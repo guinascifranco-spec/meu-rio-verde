@@ -23,7 +23,7 @@ import { formatBRL } from "@/lib/format";
 import { Plus, Trash2, CreditCard, Pencil } from "lucide-react";
 
 export const Route = createFileRoute("/_app/cartoes/")({
-  head: () => ({ meta: [{ title: "Cartões — FinTrack" }] }),
+  head: () => ({ meta: [{ title: "Cartões — MonetaRio" }] }),
   component: Cartoes,
 });
 
@@ -111,14 +111,13 @@ function Cartoes() {
       </div>
 
       {q.isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          {[1, 2].map((i) => <Skeleton key={i} className="h-48 rounded-2xl" />)}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-48 rounded-2xl" />)}
         </div>
       ) : (q.data ?? []).length === 0 ? (
         <EmptyState
           icon="💳"
-          title="Sem cartões"
-          description="Cadastre seu primeiro cartão para acompanhar faturas."
+          title="Adicione seu primeiro cartão de crédito."
           actionLabel="Novo cartão"
           onAction={() => { setEditingId(null); setOpen(true); }}
         />
