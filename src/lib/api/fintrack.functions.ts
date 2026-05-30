@@ -45,6 +45,30 @@ export const deleteTransaction = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const updateTransaction = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        type: z.enum(["income", "expense"]),
+        amount: z.number().positive(),
+        category: z.string().min(1),
+        description: z.string().optional().nullable(),
+        date: z.string(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { id, ...patch } = data;
+    const { error } = await context.supabase
+      .from("transactions")
+      .update(patch)
+      .eq("id", id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 // ============ Bills ============
 export const listBills = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -98,6 +122,27 @@ export const deleteBill = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.from("bills").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const updateBill = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        description: z.string().min(1),
+        amount: z.number().positive(),
+        due_date: z.string(),
+        type: z.enum(["payable", "receivable"]),
+        recurring: z.boolean().default(false),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { id, ...patch } = data;
+    const { error } = await context.supabase.from("bills").update(patch).eq("id", id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -171,6 +216,26 @@ export const deleteGoal = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const updateGoal = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        name: z.string().min(1),
+        target_amount: z.number().positive(),
+        deadline: z.string().nullable().optional(),
+        emoji: z.string().min(1).default("🎯"),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { id, ...patch } = data;
+    const { error } = await context.supabase.from("goals").update(patch).eq("id", id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 // ============ Cards ============
 export const listCards = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -232,6 +297,31 @@ export const deleteCard = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.from("credit_cards").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const updateCard = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        name: z.string().min(1),
+        credit_limit: z.number().positive(),
+        closing_day: z.number().int().min(1).max(31),
+        due_day: z.number().int().min(1).max(31),
+        color: z.string().default("#10B981"),
+        brand: z.string().optional().nullable(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { id, ...patch } = data;
+    const { error } = await context.supabase
+      .from("credit_cards")
+      .update(patch)
+      .eq("id", id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -299,6 +389,29 @@ export const deleteCardPurchase = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.from("card_purchases").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const updateCardPurchase = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        description: z.string().min(1),
+        amount: z.number().positive(),
+        date: z.string(),
+        category: z.string().min(1),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { id, ...patch } = data;
+    const { error } = await context.supabase
+      .from("card_purchases")
+      .update(patch)
+      .eq("id", id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

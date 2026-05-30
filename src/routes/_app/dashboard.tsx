@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   listTransactions,
   listBills,
+  deleteTransaction,
 } from "@/lib/api/fintrack.functions";
 import { formatBRL, formatDateBR } from "@/lib/format";
 import {
@@ -26,7 +28,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { Plus, TrendingUp, TrendingDown, Wallet, PiggyBank } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, Wallet, PiggyBank, Pencil, Trash2 } from "lucide-react";
 import { TransactionDialog } from "@/components/dialogs/transaction-dialog";
 import { BillDialog } from "@/components/dialogs/bill-dialog";
 import { EmptyState } from "@/components/empty-state";
@@ -44,11 +46,35 @@ const PIE_COLORS = ["#10B981", "#34D399", "#6EE7B7", "#A7F3D0", "#FBBF24", "#F97
 function Dashboard() {
   const [openTx, setOpenTx] = useState(false);
   const [openBill, setOpenBill] = useState(false);
+  const [editingTx, setEditingTx] = useState<{
+    id: string;
+    type: "income" | "expense";
+    amount: number | string;
+    category: string;
+    description?: string | null;
+    date: string;
+  } | null>(null);
   const listTx = useServerFn(listTransactions);
   const listB = useServerFn(listBills);
+  const delTx = useServerFn(deleteTransaction);
+  const qc = useQueryClient();
 
   const txQ = useQuery({ queryKey: ["transactions"], queryFn: () => listTx() });
   const billsQ = useQuery({ queryKey: ["bills"], queryFn: () => listB() });
+
+  const delM = useMutation({
+    mutationFn: async (txId: string) => delTx({ data: { id: txId } }),
+    onSuccess: () => {
+      toast.success("Transação removida");
+      qc.invalidateQueries({ queryKey: ["transactions"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const recentTx = useMemo(
+    () => (txQ.data ?? []).slice(0, 8),
+    [txQ.data],
+  );
 
   const now = new Date();
   const monthStart = startOfMonth(now);
@@ -104,7 +130,7 @@ function Dashboard() {
           <p className="text-sm text-muted-foreground">Resumo de {format(now, "MMMM 'de' yyyy")}</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setOpenTx(true)} className="rounded-xl">
+          <Button onClick={() => { setEditingTx(null); setOpenTx(true); }} className="rounded-xl">
             <Plus className="mr-1 h-4 w-4" /> Transação
           </Button>
           <Button onClick={() => setOpenBill(true)} variant="outline" className="rounded-xl">
@@ -237,7 +263,82 @@ function Dashboard() {
         </CardContent>
       </Card>
 
-      <TransactionDialog open={openTx} onOpenChange={setOpenTx} />
+      {/* Recent transactions */}
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle className="text-base">Últimas transações</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {txQ.isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          ) : recentTx.length === 0 ? (
+            <EmptyState
+              icon="📝"
+              title="Nenhuma transação"
+              description="Registre sua primeira receita ou despesa."
+              actionLabel="Nova transação"
+              onAction={() => { setEditingTx(null); setOpenTx(true); }}
+            />
+          ) : (
+            <ul className="divide-y divide-border">
+              {recentTx.map((t) => (
+                <li key={t.id} className="flex items-center justify-between gap-2 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">
+                      {t.description || t.category}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDateBR(t.date)} · {t.category}
+                    </p>
+                  </div>
+                  <span
+                    className={`font-semibold ${t.type === "income" ? "text-emerald-600" : "text-rose-500"}`}
+                  >
+                    {t.type === "income" ? "+" : "-"} {formatBRL(Number(t.amount))}
+                  </span>
+                  <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setEditingTx({
+                          id: t.id,
+                          type: t.type === "income" ? "income" : "expense",
+                          amount: t.amount,
+                          category: t.category,
+                          description: t.description,
+                          date: t.date,
+                        });
+                        setOpenTx(true);
+                      }}
+                      className="rounded-lg text-muted-foreground hover:text-foreground"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => delM.mutate(t.id)}
+                      className="rounded-lg text-muted-foreground hover:text-rose-500"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <TransactionDialog
+        open={openTx}
+        onOpenChange={(o) => { setOpenTx(o); if (!o) setEditingTx(null); }}
+        initial={editingTx}
+      />
       <BillDialog open={openBill} onOpenChange={setOpenBill} />
     </div>
   );

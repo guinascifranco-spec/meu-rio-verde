@@ -1,75 +1,55 @@
+## Objetivo
 
-# FinTrack — Plano de Construção
+Permitir editar qualquer lançamento já criado: transações, contas a pagar/receber, metas, cartões e compras de cartão.
 
-App de controle financeiro pessoal em português (Brasil), com login Google, dados no Lovable Cloud (Supabase), visual minimalista (branco, cinza suave, verde esmeralda #10B981, Inter, rounded-2xl).
+## Backend (server functions em `src/lib/api/fintrack.functions.ts`)
 
-## 1. Backend (Lovable Cloud)
+Adicionar uma função `update*` para cada entidade, com o mesmo schema Zod do `create*` + `id`, usando `requireSupabaseAuth` e `supabase.from(...).update(...).eq("id", id)`:
 
-Ativar Lovable Cloud e configurar Google OAuth.
+- `updateTransaction` — type, amount, category, description, date
+- `updateBill` — description, amount, due_date, type, recurring
+- `updateGoal` — name, target_amount, deadline, emoji
+- `updateCard` — name, credit_limit, closing_day, due_day, color, brand
+- `updateCardPurchase` — description, amount, date, category (sem mexer em parcelas; editar uma parcela altera só aquela linha; aviso na UI)
 
-**Tabelas (todas com RLS — usuário só vê os próprios dados):**
-- `profiles` — id (FK auth.users), nome, avatar_url, criado em
-- `transactions` — id, user_id, tipo (income/expense), valor, categoria, descrição, data
-- `bills` — id, user_id, descrição, valor, vencimento, tipo (payable/receivable), status (pending/paid), recorrente
-- `goals` — id, user_id, nome, valor_alvo, prazo, emoji
-- `goal_contributions` — id, goal_id, user_id, valor, data
-- `credit_cards` — id, user_id, nome, limite, dia_fechamento, dia_vencimento, cor, bandeira
-- `card_purchases` — id, card_id, user_id, descrição, valor, data, categoria, parcelas, parcela_atual
+RLS atual (`auth.uid() = user_id`) já cobre updates. Sem migrações.
 
-Trigger auto-criação de profile no signup. Policies `auth.uid() = user_id` em todas as tabelas.
+## Frontend
 
-## 2. Frontend — Rotas
+Estratégia: reaproveitar os dialogs existentes adicionando um modo "editar". O dialog passa a aceitar `initial?: Entity | null`; quando presente, pré-preenche campos, muda título para "Editar X" e chama a função `update*` em vez da `create*`.
 
-```
-/login                            público — botão "Entrar com Google"
-/_authenticated/                  layout protegido + sidebar/topnav
-  ├ /                             Dashboard
-  ├ /metas                        Goals
-  ├ /contas                       Bills
-  ├ /cartoes                      Credit Cards
-  ├ /cartoes/$id                  Detalhe da fatura
-  └ /relatorios                   Reports
-```
+Componentes a atualizar:
 
-## 3. Páginas
+- `src/components/dialogs/transaction-dialog.tsx` — aceitar `initial`, criar/atualizar conforme presença.
+- `src/components/dialogs/bill-dialog.tsx` — idem.
+- `src/routes/_app/metas.tsx` — converter o `Dialog` inline de nova meta em criar/editar (mesmo state, prop `editing`).
+- `src/routes/_app/cartoes.index.tsx` — idem para cartões.
+- `src/routes/_app/cartoes.$id.tsx` — idem para compras.
 
-**Dashboard** — 4 cards (receitas, despesas, saldo, taxa poupança %), gráfico de linha (saldo últimos 6 meses), donut (despesas por categoria), lista próximas contas 7 dias, botões "+ Transação" e "+ Conta".
+Em cada lista (dashboard recentes? não há lista de transações hoje — ver abaixo), contas, metas, cartões e compras, adicionar botão de lápis (`Pencil` do lucide-react) ao lado do botão de excluir que abre o dialog em modo edição.
 
-**Metas** — grid de cards com emoji, barra de progresso, status (Em andamento/Concluída/Atrasada), modal nova meta, modal aporte.
+### Lista de transações
 
-**Contas** — tabela com filtros (status, tipo, mês), vencidas em vermelho, botão "Marcar como paga" com confirmação, modal nova conta.
+Atualmente não existe uma página listando transações individualmente para editar. Duas opções:
 
-**Cartões** — lista de cartões (cor/bandeira), por cartão: fatura atual, barra limite usado/disponível, próximas datas. Página de detalhe lista compras do ciclo, modal nova compra com parcelas 1–24x (gera N registros).
+1. **Adicionar uma seção "Últimas transações" no Dashboard** com ações editar/excluir por linha (mínimo viável, sem nova rota).
+2. Criar rota `/transacoes` dedicada.
 
-**Relatórios** — seletor de mês, gráfico de barras receitas vs despesas (12 meses), tabela despesas por categoria com %, botão exportar PDF (window.print com layout impressão).
+Plano adota opção 1 (menor escopo, mantém navegação atual). Caso prefira rota dedicada, ajusto.
 
-## 4. Componentes compartilhados
-- `AppShell` (sidebar desktop / bottom-nav mobile)
-- `MoneyInput`, `CurrencyDisplay` (R$ 0.000,00)
-- `DateDisplay` (dd/MM/yyyy via date-fns/pt-BR)
-- `EmptyState`, `LoadingSkeleton`
-- Toasts via sonner
-- Modais shadcn Dialog para criar/editar
+### UX
 
-## 5. Detalhes técnicos
+- Toast: "X atualizada" no sucesso.
+- Invalidar as mesmas query keys do create correspondente.
+- Confirmação de edição não é necessária (apenas para marcar conta como paga, que já existe).
 
-- Stack: TanStack Start (já no template) + React + TS + Tailwind + shadcn + Recharts + date-fns
-- Acesso a dados: `createServerFn` com `requireSupabaseAuth` + TanStack Query (`ensureQueryData` + `useSuspenseQuery`)
-- Mutations invalidam queries relevantes; toast em todo create/update/delete
-- Sign-in Google via broker Lovable + `configure_social_auth(["google"])`
-- Layout `_authenticated` com `beforeLoad` checando sessão
-- Tokens de design em `src/styles.css` (verde esmeralda como `--primary`, fundo branco, radius 1rem)
-- Fonte Inter via Google Fonts no `__root.tsx`
+## Resumo de arquivos
 
-## 6. Ordem de implementação
-1. Ativar Cloud, criar migrations (tabelas + RLS + trigger profile)
-2. Configurar Google auth + tokens de design + Inter
-3. AppShell + rota `/login` + `_authenticated`
-4. Server functions + hooks por entidade
-5. Dashboard
-6. Metas, Contas, Cartões, Relatórios
-7. Empty states, skeletons, polish responsivo
-
----
-
-**Pergunta rápida antes de começar:** quer que eu inclua **categorias customizáveis** pelo usuário (CRUD próprio de categorias) ou uso uma **lista fixa pré-definida** (Alimentação, Transporte, Moradia, Lazer, Saúde, Educação, Outros)? A lista fixa é mais rápida e suficiente pra maioria dos casos.
+- `src/lib/api/fintrack.functions.ts` — +5 funções update.
+- `src/components/dialogs/transaction-dialog.tsx` — modo edição.
+- `src/components/dialogs/bill-dialog.tsx` — modo edição.
+- `src/routes/_app/dashboard.tsx` — nova seção "Últimas transações" com editar/excluir.
+- `src/routes/_app/contas.tsx` — botão editar em cada linha.
+- `src/routes/_app/metas.tsx` — dialog em modo criar/editar + botão editar.
+- `src/routes/_app/cartoes.index.tsx` — dialog em modo criar/editar + botão editar.
+- `src/routes/_app/cartoes.$id.tsx` — dialog em modo criar/editar + botão editar por compra.
