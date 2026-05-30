@@ -213,7 +213,18 @@ function Contas() {
       <BillDialog
         open={openNew}
         onOpenChange={(o) => { setOpenNew(o); if (!o) setEditing(null); }}
-        initial={editing}
+        initial={
+          editing
+            ? {
+                id: editing.id,
+                type: editing.type === "receivable" ? "receivable" : "payable",
+                amount: editing.amount,
+                description: editing.description,
+                due_date: editing.due_date,
+                recurring: editing.recurring,
+              }
+            : null
+        }
       />
 
       <AlertDialog open={!!confirmId} onOpenChange={(o) => !o && setConfirmId(null)}>
