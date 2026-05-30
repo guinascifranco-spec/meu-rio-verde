@@ -43,8 +43,9 @@ function Contas() {
   const qc = useQueryClient();
 
   const q = useQuery({ queryKey: ["bills"], queryFn: () => list() });
+  type Bill = NonNullable<typeof q.data>[number];
   const [openNew, setOpenNew] = useState(false);
-  const [editing, setEditing] = useState<(typeof q.data extends (infer T)[] | undefined ? T : never) | null>(null);
+  const [editing, setEditing] = useState<Bill | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
