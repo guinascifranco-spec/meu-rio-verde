@@ -216,6 +216,26 @@ export const deleteGoal = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const updateGoal = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        name: z.string().min(1),
+        target_amount: z.number().positive(),
+        deadline: z.string().nullable().optional(),
+        emoji: z.string().min(1).default("🎯"),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { id, ...patch } = data;
+    const { error } = await context.supabase.from("goals").update(patch).eq("id", id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 // ============ Cards ============
 export const listCards = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
