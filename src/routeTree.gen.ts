@@ -14,6 +14,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRelatoriosRouteImport } from './routes/_app/relatorios'
 import { Route as AppMetasRouteImport } from './routes/_app/metas'
+import { Route as AppInvestimentosRouteImport } from './routes/_app/investimentos'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppContasRouteImport } from './routes/_app/contas'
 import { Route as AppCartoesIndexRouteImport } from './routes/_app/cartoes.index'
@@ -43,6 +44,11 @@ const AppMetasRoute = AppMetasRouteImport.update({
   path: '/metas',
   getParentRoute: () => AppRoute,
 } as any)
+const AppInvestimentosRoute = AppInvestimentosRouteImport.update({
+  id: '/investimentos',
+  path: '/investimentos',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -69,6 +75,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/contas': typeof AppContasRoute
   '/dashboard': typeof AppDashboardRoute
+  '/investimentos': typeof AppInvestimentosRoute
   '/metas': typeof AppMetasRoute
   '/relatorios': typeof AppRelatoriosRoute
   '/cartoes/$id': typeof AppCartoesIdRoute
@@ -79,6 +86,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/contas': typeof AppContasRoute
   '/dashboard': typeof AppDashboardRoute
+  '/investimentos': typeof AppInvestimentosRoute
   '/metas': typeof AppMetasRoute
   '/relatorios': typeof AppRelatoriosRoute
   '/cartoes/$id': typeof AppCartoesIdRoute
@@ -91,6 +99,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_app/contas': typeof AppContasRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/investimentos': typeof AppInvestimentosRoute
   '/_app/metas': typeof AppMetasRoute
   '/_app/relatorios': typeof AppRelatoriosRoute
   '/_app/cartoes/$id': typeof AppCartoesIdRoute
@@ -103,6 +112,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/contas'
     | '/dashboard'
+    | '/investimentos'
     | '/metas'
     | '/relatorios'
     | '/cartoes/$id'
@@ -113,6 +123,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/contas'
     | '/dashboard'
+    | '/investimentos'
     | '/metas'
     | '/relatorios'
     | '/cartoes/$id'
@@ -124,6 +135,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_app/contas'
     | '/_app/dashboard'
+    | '/_app/investimentos'
     | '/_app/metas'
     | '/_app/relatorios'
     | '/_app/cartoes/$id'
@@ -173,6 +185,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMetasRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/investimentos': {
+      id: '/_app/investimentos'
+      path: '/investimentos'
+      fullPath: '/investimentos'
+      preLoaderRoute: typeof AppInvestimentosRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/dashboard': {
       id: '/_app/dashboard'
       path: '/dashboard'
@@ -207,6 +226,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppContasRoute: typeof AppContasRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppInvestimentosRoute: typeof AppInvestimentosRoute
   AppMetasRoute: typeof AppMetasRoute
   AppRelatoriosRoute: typeof AppRelatoriosRoute
   AppCartoesIdRoute: typeof AppCartoesIdRoute
@@ -216,6 +236,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppContasRoute: AppContasRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppInvestimentosRoute: AppInvestimentosRoute,
   AppMetasRoute: AppMetasRoute,
   AppRelatoriosRoute: AppRelatoriosRoute,
   AppCartoesIdRoute: AppCartoesIdRoute,

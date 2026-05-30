@@ -415,3 +415,146 @@ export const updateCardPurchase = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// ============ Investments ============
+export const listInvestments = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("investments")
+      .select("*")
+      .order("purchase_date", { ascending: false });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+export const createInvestment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        name: z.string().min(1),
+        type: z.enum(["renda_fixa", "acoes_fiis", "fundos", "cripto", "previdencia"]),
+        institution: z.string().min(1),
+        invested_amount: z.number().positive(),
+        current_value: z.number().nonnegative(),
+        purchase_date: z.string(),
+        maturity_date: z.string().nullable().optional(),
+        notes: z.string().nullable().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("investments")
+      .insert({ ...data, user_id: context.userId });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const updateInvestment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        name: z.string().min(1),
+        type: z.enum(["renda_fixa", "acoes_fiis", "fundos", "cripto", "previdencia"]),
+        institution: z.string().min(1),
+        invested_amount: z.number().positive(),
+        current_value: z.number().nonnegative(),
+        purchase_date: z.string(),
+        maturity_date: z.string().nullable().optional(),
+        notes: z.string().nullable().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { id, ...patch } = data;
+    const { error } = await context.supabase
+      .from("investments")
+      .update(patch)
+      .eq("id", id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const deleteInvestment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("investments")
+      .delete()
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const listInvestmentTransactions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ investment_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("investment_transactions")
+      .select("*")
+      .eq("investment_id", data.investment_id)
+      .order("date", { ascending: false });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
+export const createInvestmentTransaction = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        investment_id: z.string().uuid(),
+        type: z.enum(["aporte", "resgate"]),
+        amount: z.number().positive(),
+        date: z.string(),
+        new_current_value: z.number().nonnegative(),
+        notes: z.string().nullable().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { new_current_value, ...txData } = data;
+    // Insert transaction record
+    const { error: txErr } = await context.supabase
+      .from("investment_transactions")
+      .insert({ ...txData, user_id: context.userId });
+    if (txErr) throw new Error(txErr.message);
+    // Update current_value on the investment
+    const { error: invErr } = await context.supabase
+      .from("investments")
+      .update({ current_value: new_current_value })
+      .eq("id", data.investment_id);
+    if (invErr) throw new Error(invErr.message);
+    return { ok: true };
+  });
+
+export const bulkCreateInvestments = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        rows: z.array(
+          z.object({
+            name: z.string().min(1),
+            type: z.enum(["renda_fixa", "acoes_fiis", "fundos", "cripto", "previdencia"]),
+            institution: z.string().min(1),
+            invested_amount: z.number().nonnegative(),
+            current_value: z.number().nonnegative(),
+            purchase_date: z.string(),
+          }),
+        ),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const rows = data.rows.map((r) => ({ ...r, user_id: context.userId }));
+    const { error } = await context.supabase.from("investments").insert(rows);
+    if (error) throw new Error(error.message);
+    return { count: rows.length };
+  });

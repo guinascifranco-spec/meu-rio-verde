@@ -8,6 +8,7 @@ import {
   listTransactions,
   listBills,
   deleteTransaction,
+  listInvestments,
 } from "@/lib/api/fintrack.functions";
 import { formatBRL, formatDateBR } from "@/lib/format";
 import {
@@ -58,6 +59,7 @@ function Dashboard() {
   const listTx = useServerFn(listTransactions);
   const listB = useServerFn(listBills);
   const delTx = useServerFn(deleteTransaction);
+  const listInv = useServerFn(listInvestments);
   const qc = useQueryClient();
 
   const userQ = useQuery({
@@ -89,6 +91,7 @@ function Dashboard() {
 
   const txQ = useQuery({ queryKey: ["transactions"], queryFn: () => listTx() });
   const billsQ = useQuery({ queryKey: ["bills"], queryFn: () => listB() });
+  const invQ = useQuery({ queryKey: ["investments"], queryFn: () => listInv() });
 
   const delM = useMutation({
     mutationFn: async (txId: string) => delTx({ data: { id: txId } }),
@@ -153,6 +156,14 @@ function Dashboard() {
   const displayName = userQ.data?.user_metadata?.display_name || userQ.data?.user_metadata?.full_name || userQ.data?.email || "";
   const greeting = displayName ? `Olá, ${displayName} 👋` : "Olá 👋";
 
+  const invStats = useMemo(() => {
+    const invs = invQ.data ?? [];
+    const totalInvested = invs.reduce((s: number, i: { invested_amount: number }) => s + Number(i.invested_amount), 0);
+    const totalCurrent = invs.reduce((s: number, i: { current_value: number }) => s + Number(i.current_value), 0);
+    const pct = totalInvested > 0 ? ((totalCurrent - totalInvested) / totalInvested) * 100 : 0;
+    return { totalCurrent, pct };
+  }, [invQ.data]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -171,7 +182,7 @@ function Dashboard() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
         <SummaryCard
           label="Receitas"
           value={formatBRL(monthly.income || 0)}
@@ -197,6 +208,14 @@ function Dashboard() {
           value={`${(monthly.savings || 0).toFixed(0)}%`}
           icon={<PiggyBank className="h-4 w-4" />}
           loading={txQ.isLoading}
+        />
+        <SummaryCard
+          label="Total investido"
+          value={formatBRL(invStats.totalCurrent)}
+          icon={<TrendingUp className="h-4 w-4" />}
+          tone={invStats.pct >= 0 ? "text-emerald-600" : "text-rose-500"}
+          sub={`${invStats.pct >= 0 ? "+" : ""}${invStats.pct.toFixed(1)}% rentabilidade`}
+          loading={invQ.isLoading}
         />
       </div>
 
@@ -384,12 +403,14 @@ function SummaryCard({
   value,
   icon,
   tone,
+  sub,
   loading,
 }: {
   label: string;
   value: string;
   icon: React.ReactNode;
   tone?: string;
+  sub?: string;
   loading?: boolean;
 }) {
   return (
@@ -402,7 +423,10 @@ function SummaryCard({
         {loading ? (
           <Skeleton className="mt-3 h-7 w-24" />
         ) : (
-          <p className={`mt-2 text-xl font-bold md:text-2xl ${tone ?? ""}`}>{value}</p>
+          <>
+            <p className={`mt-2 text-xl font-bold md:text-2xl ${tone ?? ""}`}>{value}</p>
+            {sub && <p className={`mt-0.5 text-xs font-medium ${tone ?? "text-muted-foreground"}`}>{sub}</p>}
+          </>
         )}
       </CardContent>
     </Card>

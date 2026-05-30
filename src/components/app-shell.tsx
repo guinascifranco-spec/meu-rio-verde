@@ -4,6 +4,7 @@ import {
   Target,
   Receipt,
   CreditCard,
+  TrendingUp,
   BarChart3,
   LogOut,
   Wallet,
@@ -17,6 +18,7 @@ const nav = [
   { to: "/metas", label: "Metas", icon: Target },
   { to: "/contas", label: "Contas", icon: Receipt },
   { to: "/cartoes", label: "Cartões", icon: CreditCard },
+  { to: "/investimentos", label: "Investimentos", icon: TrendingUp },
   { to: "/relatorios", label: "Relatórios", icon: BarChart3 },
 ];
 
@@ -80,7 +82,7 @@ export function AppShell() {
       </header>
 
       {/* Bottom nav mobile */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 border-t border-border bg-card md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-6 border-t border-border bg-card md:hidden">
         {nav.map((item) => {
           const Icon = item.icon;
           const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
