@@ -28,7 +28,7 @@ import { EmptyState } from "@/components/empty-state";
 import { BillDialog } from "@/components/dialogs/bill-dialog";
 import { listBills, togglePaidBill, deleteBill } from "@/lib/api/fintrack.functions";
 import { formatBRL, formatDateBR } from "@/lib/format";
-import { Plus, Trash2, Check } from "lucide-react";
+import { Plus, Trash2, Check, Pencil } from "lucide-react";
 import { parseISO, isBefore, startOfDay } from "date-fns";
 
 export const Route = createFileRoute("/_app/contas")({
@@ -44,6 +44,7 @@ function Contas() {
 
   const q = useQuery({ queryKey: ["bills"], queryFn: () => list() });
   const [openNew, setOpenNew] = useState(false);
+  const [editing, setEditing] = useState<(typeof q.data extends (infer T)[] | undefined ? T : never) | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
@@ -92,7 +93,7 @@ function Contas() {
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Contas</h1>
           <p className="text-sm text-muted-foreground">A pagar e a receber</p>
         </div>
-        <Button onClick={() => setOpenNew(true)} className="rounded-xl">
+      <Button onClick={() => { setEditing(null); setOpenNew(true); }} className="rounded-xl">
           <Plus className="mr-1 h-4 w-4" /> Nova conta
         </Button>
       </div>
@@ -187,6 +188,14 @@ function Contas() {
                       <Button
                         size="sm"
                         variant="ghost"
+                        onClick={() => { setEditing(b); setOpenNew(true); }}
+                        className="rounded-lg text-muted-foreground hover:text-foreground"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         onClick={() => delM.mutate(b.id)}
                         className="rounded-lg text-muted-foreground hover:text-rose-500"
                       >
@@ -201,7 +210,11 @@ function Contas() {
         </CardContent>
       </Card>
 
-      <BillDialog open={openNew} onOpenChange={setOpenNew} />
+      <BillDialog
+        open={openNew}
+        onOpenChange={(o) => { setOpenNew(o); if (!o) setEditing(null); }}
+        initial={editing}
+      />
 
       <AlertDialog open={!!confirmId} onOpenChange={(o) => !o && setConfirmId(null)}>
         <AlertDialogContent className="rounded-2xl">
