@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,9 +18,9 @@ import {
 } from "@/components/ui/dialog";
 import { MoneyInput } from "@/components/money-input";
 import { EmptyState } from "@/components/empty-state";
-import { listCards, createCard, deleteCard } from "@/lib/api/fintrack.functions";
+import { listCards, createCard, deleteCard, updateCard } from "@/lib/api/fintrack.functions";
 import { formatBRL } from "@/lib/format";
-import { Plus, Trash2, CreditCard } from "lucide-react";
+import { Plus, Trash2, CreditCard, Pencil } from "lucide-react";
 
 export const Route = createFileRoute("/_app/cartoes/")({
   head: () => ({ meta: [{ title: "Cartões — FinTrack" }] }),
@@ -30,11 +30,13 @@ export const Route = createFileRoute("/_app/cartoes/")({
 function Cartoes() {
   const list = useServerFn(listCards);
   const create = useServerFn(createCard);
+  const update = useServerFn(updateCard);
   const del = useServerFn(deleteCard);
   const qc = useQueryClient();
 
   const q = useQuery({ queryKey: ["cards"], queryFn: () => list() });
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [limit, setLimit] = useState<number | "">("");
   const [closing, setClosing] = useState<number | "">(1);
@@ -42,28 +44,48 @@ function Cartoes() {
   const [color, setColor] = useState("#10B981");
   const [brand, setBrand] = useState("");
 
+  useEffect(() => {
+    if (!open) return;
+    if (editingId) {
+      const c = (q.data ?? []).find((x) => x.id === editingId);
+      if (c) {
+        setName(c.name);
+        setLimit(Number(c.credit_limit));
+        setClosing(c.closing_day);
+        setDue(c.due_day);
+        setColor(c.color);
+        setBrand(c.brand ?? "");
+      }
+    } else {
+      setName("");
+      setLimit("");
+      setClosing(1);
+      setDue(10);
+      setColor("#10B981");
+      setBrand("");
+    }
+  }, [open, editingId, q.data]);
+
   const m = useMutation({
     mutationFn: async () => {
       if (!name || limit === "" || closing === "" || due === "")
         throw new Error("Preencha todos os campos");
-      return create({
-        data: {
-          name,
-          credit_limit: Number(limit),
-          closing_day: Number(closing),
-          due_day: Number(due),
-          color,
-          brand: brand || null,
-        },
-      });
+      const payload = {
+        name,
+        credit_limit: Number(limit),
+        closing_day: Number(closing),
+        due_day: Number(due),
+        color,
+        brand: brand || null,
+      };
+      if (editingId) return update({ data: { id: editingId, ...payload } });
+      return create({ data: payload });
     },
     onSuccess: () => {
-      toast.success("Cartão criado");
+      toast.success(editingId ? "Cartão atualizado" : "Cartão criado");
       qc.invalidateQueries({ queryKey: ["cards"] });
       setOpen(false);
-      setName("");
-      setLimit("");
-      setBrand("");
+      setEditingId(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -83,7 +105,7 @@ function Cartoes() {
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Cartões</h1>
           <p className="text-sm text-muted-foreground">Gerencie suas faturas</p>
         </div>
-        <Button onClick={() => setOpen(true)} className="rounded-xl">
+        <Button onClick={() => { setEditingId(null); setOpen(true); }} className="rounded-xl">
           <Plus className="mr-1 h-4 w-4" /> Novo cartão
         </Button>
       </div>
@@ -98,7 +120,7 @@ function Cartoes() {
           title="Sem cartões"
           description="Cadastre seu primeiro cartão para acompanhar faturas."
           actionLabel="Novo cartão"
-          onAction={() => setOpen(true)}
+          onAction={() => { setEditingId(null); setOpen(true); }}
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
@@ -113,9 +135,22 @@ function Cartoes() {
                       <p className="text-xs uppercase opacity-80">{c.brand ?? "Cartão"}</p>
                       <p className="text-lg font-semibold">{c.name}</p>
                     </div>
-                    <button onClick={() => delM.mutate(c.id)} className="opacity-70 hover:opacity-100">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setEditingId(c.id); setOpen(true); }}
+                        className="opacity-70 hover:opacity-100"
+                        aria-label="Editar"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => delM.mutate(c.id)}
+                        className="opacity-70 hover:opacity-100"
+                        aria-label="Excluir"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <CardContent className="p-5">
@@ -154,9 +189,9 @@ function Cartoes() {
         </div>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditingId(null); }}>
         <DialogContent className="rounded-2xl sm:max-w-md">
-          <DialogHeader><DialogTitle>Novo cartão</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingId ? "Editar cartão" : "Novo cartão"}</DialogTitle></DialogHeader>
           <div className="grid gap-3 py-2">
             <div className="grid gap-1.5">
               <Label>Nome</Label>
