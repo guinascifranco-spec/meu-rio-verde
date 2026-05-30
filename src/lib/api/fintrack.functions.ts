@@ -45,6 +45,30 @@ export const deleteTransaction = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const updateTransaction = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        type: z.enum(["income", "expense"]),
+        amount: z.number().positive(),
+        category: z.string().min(1),
+        description: z.string().optional().nullable(),
+        date: z.string(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { id, ...patch } = data;
+    const { error } = await context.supabase
+      .from("transactions")
+      .update(patch)
+      .eq("id", id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 // ============ Bills ============
 export const listBills = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
