@@ -301,6 +301,31 @@ export const deleteCard = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const updateCard = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        name: z.string().min(1),
+        credit_limit: z.number().positive(),
+        closing_day: z.number().int().min(1).max(31),
+        due_day: z.number().int().min(1).max(31),
+        color: z.string().default("#10B981"),
+        brand: z.string().optional().nullable(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { id, ...patch } = data;
+    const { error } = await context.supabase
+      .from("credit_cards")
+      .update(patch)
+      .eq("id", id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 export const getCardWithPurchases = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
